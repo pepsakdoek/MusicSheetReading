@@ -1,0 +1,51 @@
+body {
+	font-family: "Inter", sans-serif;
+	background-color: #f0f4f8;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	min-height: 100vh;
+	margin: 0;
+	padding: 20px;
+	box-sizing: border-box;
+}
+
+#osmd-container {
+	width: 100%;
+	max-width: none;
+	min-width: 0;
+	margin: 20px 0;
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	background-color: #ffffff;
+	padding: 10px;
+	overflow-x: hidden;
+}
+
+h1 {
+	color: #2d3748;
+	margin-bottom: 20px;
+	font-size: 2.5rem;
+}
+
+/* Tailwind @apply not supported in raw CSS, use classes in HTML instead */
+.btn {
+	padding: 0.75rem 1.5rem;
+	background-color: #2563eb; /* bg-blue-600 */
+	color: white;
+	font-weight: 600;
+	border-radius: 0.5rem;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+	transition: background-color 0.3s ease-in-out;
+    align-self: anchor-center;
+}
+
+.btn:hover {
+	background-color: #1d4ed8; /* bg-blue-700 */
+}
+
+.btn:focus {
+	outline: none;
+	box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}

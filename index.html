@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OSMD Sight Reading Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1 class="text-4xl font-bold text-gray-800 mb-6">OSMD Sight Reading</h1>
+
+    <!-- Options Panel: full width, left-aligned, above OSMD, can be toggled -->
+    <div class="w-full max-w-4xl mx-auto mb-6">
+        <button id="optionsBtn" class="btn mb-2">Options</button>
+        <div id="optionsPanel" class="bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-10 hidden">
+            <h2 class="font-semibold text-lg mb-2">Practice Options</h2>
+            <div class="mb-3">
+                <label class="block font-medium mb-1" for="measuresSelect">Number of Bars (todo)</label>
+                <select id="measuresSelect" class="w-full border rounded px-2 py-1 mb-2">
+                    <option value="4">4</option>
+                    <option value="8" selected>8</option>
+                    <option value="12">12</option>
+                    <option value="16">16</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="block font-medium mb-1" for="noteLengthsSelect">Note Lengths (todo)</label>
+                <select id="noteLengthsSelect" multiple class="w-full border rounded px-2 py-1" size="5">
+                    <option value="16">16th</option>
+                    <option value="8">8th</option>
+                    <option value="4" selected>Quarter</option>
+                    <option value="2">Half</option>
+                    <option value="1">Whole</option>
+                </select>
+                <div class="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</div>
+            </div>
+            <div class="mb-3">
+                <label class="block font-medium mb-1" for="keySelect">Key (todo)</label>
+                <select id="keySelect" class="w-full border rounded px-2 py-1">
+                    <option>C Major</option>
+                    <option>G Major</option>
+                    <option>D Major</option>
+                    <option>A Major</option>
+                    <option>E Major</option>
+                    <option>B Major</option>
+                    <option>F Major</option>
+                    <option>Bb Major</option>
+                    <option>Eb Major</option>
+                    <option>Ab Major</option>
+                    <option>Db Major</option>
+                    <option>Gb Major</option>
+                </select>
+            </div>
+            <div class="mb-3 flex gap-4">
+                <div>
+                    <label class="block font-medium mb-1" for="maxNotes">Max Notes per Hand (todo)</label>
+                    <input id="maxNotes" type="number" min="1" max="5" value="1" class="w-16 border rounded px-2 py-1">
+                </div>
+                <div>
+                    <label class="block font-medium mb-1" for="maxJump">Max Jump</label>
+                    <input id="maxJump" type="number" min="1" max="12" value="3" class="w-16 border rounded px-2 py-1">
+                </div>
+            </div>
+            <div class="mb-3 border-t pt-3 mt-3">
+                <label class="block font-medium mb-1">Other Options</label>
+                <div class="flex flex-col gap-2">
+                    <label><input type="checkbox" id="startTonic" checked> Start on tonic</label>
+                    <label><input type="checkbox" id="allowDotted"> Allow dotted notes (todo)</label>
+                    <label><input type="checkbox" id="allowTuplets"> Allow tuplets (todo)</label>
+                    <label><input type="checkbox" id="allowChords"> Chords (todo)</label>
+                </div>
+            </div>
+            <!-- <button id="generateMusicBtn" class="btn mt-2">Generate New Music</button> -->
+        </div>
+    </div>
+
+    <!-- Main music area, full width -->
+    <div class="w-full flex flex-col min-w-0">
+        <div id="osmd-container"></div>
+        <button id="generateMusicBtn" class="btn mb-6 self-start" style="align-self: anchor-center;">Generate New Music</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.4/build/opensheetmusicdisplay.min.js"></script>
+    <script src="script.js"></script>
+    https://opensheetmusicdisplay.org/
+    <a href="license.txt" class="text-sm text-gray-500 mt-4 block">License</a>
+</body>
+</html>
