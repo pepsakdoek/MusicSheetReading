@@ -1,0 +1,19 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+.python*
+
+
+# Virtual environments
+.venv
+
+# other junk
+exercise.html
+main.py
+pyproject.toml
+test.xml
+uv.lock

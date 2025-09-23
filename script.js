@@ -1,4 +1,7 @@
 const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmd-container");
+// Place these at the top, after your imports and before any function definitions:
+let lastTrebleNotes = [];
+let lastBassNotes = [];
 
 function midiToPitch(midi) {
 	const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -16,7 +19,8 @@ function getPracticeOptions() {
     const key = document.getElementById('keySelect').value;
     const maxJump = parseInt(document.getElementById('maxJump').value, 10) || 12;
     const startTonic = document.getElementById('startTonic').checked;
-    return { key, maxJump, startTonic };
+    const bars = parseInt(document.getElementById('measuresSelect').value, 10) || 8;
+    return { key, maxJump, startTonic, bars };
 }
 
 // Helper: get scale MIDI notes for a given key
@@ -60,8 +64,11 @@ function getScaleMidiNotes(key) {
 
 function generatepractice(title = "Practice", options = {}) {
     // Get options
-    const { key = "C Major", maxJump = 12, startTonic = true } = options;
+    const { key = "C Major", maxJump = 12, startTonic = true, bars = 8 } = options;
     const scaleInfo = getScaleMidiNotes(key);
+
+    lastTrebleNotes = [];
+    lastBassNotes = [];
 
     let musicXml = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE score-partwise PUBLIC
@@ -71,34 +78,40 @@ function generatepractice(title = "Practice", options = {}) {
     <work>
         <work-title>${title}</work-title>
     </work>
-    <part-list>
-        <score-part id="P1">
-            <part-name>Piano</part-name>
-            <score-instrument id="P1-I1">
-                <instrument-name>Piano</instrument-name>
-            </score-instrument>
-            <midi-instrument id="P1-I1">
-                <midi-channel>1</midi-channel>
-                <midi-program>1</midi-program>
-            </midi-instrument>
-        </score-part>
-        <score-part id="P2">
-            <part-name>Piano</part-name>
-            <score-instrument id="P2-I1">
-                <instrument-name>Piano</instrument-name>
-            </score-instrument>
-            <midi-instrument id="P2-I1">
-                <midi-channel>2</midi-channel>
-                <midi-program>1</midi-program>
-            </midi-instrument>
-        </score-part>
-    </part-list>
+<part-list>
+    <part-group type="start" number="1">
+        <group-symbol>brace</group-symbol>
+        <group-barline>yes</group-barline>
+    </part-group>
+    <score-part id="P1">
+        <part-name>Piano</part-name>
+        <score-instrument id="P1-I1">
+            <instrument-name>Piano</instrument-name>
+        </score-instrument>
+        <midi-instrument id="P1-I1">
+            <midi-channel>1</midi-channel>
+            <midi-program>1</midi-program>
+        </midi-instrument>
+    </score-part>
+    <score-part id="P2">
+        <part-name>Piano</part-name>
+        <score-instrument id="P2-I1">
+            <instrument-name>Piano</instrument-name>
+        </score-instrument>
+        <midi-instrument id="P2-I1">
+            <midi-channel>2</midi-channel>
+            <midi-program>1</midi-program>
+        </midi-instrument>
+    </score-part>
+    <part-group type="stop" number="1"/>
+</part-list>
     <part id="P1">
 `;
 
     // Treble staff
     let prevMidi = null;
-    for (let i = 1; i <= 7; i++) {
+    // 1 less bar because we end with a whole note on the tonic
+    for (let i = 1; i <= bars-1; i++) { // <--- use bars
         musicXml += `        <measure number="${i}" width="480">\n`;
         if (i === 1) {
             musicXml += `            <attributes>
@@ -122,6 +135,8 @@ function generatepractice(title = "Practice", options = {}) {
                 randomMidi = scaleInfo.treble[Math.floor(Math.random() * scaleInfo.treble.length)];
             }
             prevMidi = randomMidi;
+            // For quarter notes (inside the loop)
+            lastTrebleNotes.push({ midi: randomMidi, duration: "4n" });
             musicXml += `            <note>
                 <pitch>${midiToPitch(randomMidi)}</pitch>
                 <duration>1</duration>
@@ -131,27 +146,22 @@ function generatepractice(title = "Practice", options = {}) {
         musicXml += `        </measure>\n`;
     }
 
-    musicXml += `        <measure number="8">
-        <note>
-            <pitch>${midiToPitch(scaleInfo.tonic + 12)}</pitch>
-            <duration>4</duration>
-            <type>whole</type>
-        </note>
-        <note>
-            <chord/>
-            <pitch>${midiToPitch(scaleInfo.tonic)}</pitch>
-            <duration>4</duration>
-            <type>whole</type>
-        </note>
-    </measure>
+    musicXml += `        <measure number="${bars+1}">
+    <note>
+        <pitch>${midiToPitch(scaleInfo.tonic + 12)}</pitch>
+        <duration>4</duration>
+        <type>whole</type>
+    </note>
+</measure>
 </part>
 <part id="P2">
 `;
+lastTrebleNotes.push({ midi: scaleInfo.tonic + 12, duration: "1n" });
 
-    // Bass staff
+// Bass staff
     prevMidi = null;
     let prevTrebleMidi = null;
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= bars-1; i++) { // <--- use bars
         musicXml += `        <measure number="${i}">\n`;
         if (i === 1) {
             musicXml += `            <attributes>
@@ -218,6 +228,8 @@ function generatepractice(title = "Practice", options = {}) {
                 }
             }
             prevMidi = randomMidi;
+            // For quarter notes (inside the loop)
+            lastBassNotes.push({ midi: randomMidi, duration: "4n" });
             musicXml += `            <note>
                 <pitch>${midiToPitch(randomMidi)}</pitch>
                 <duration>1</duration>
@@ -226,22 +238,26 @@ function generatepractice(title = "Practice", options = {}) {
         }
         musicXml += `        </measure>\n`;
     }
-
-    musicXml += `        <measure number="8">
-        <note>
-            <pitch>${midiToPitch(scaleInfo.bass[0])}</pitch>
-            <duration>4</duration>
-            <type>whole</type>
-        </note>
-        <note>
-            <chord/>
-            <pitch>${midiToPitch(scaleInfo.bass[0]+12)}</pitch>
-            <duration>4</duration>
-            <type>whole</type>
-        </note>
-    </measure>
+    musicXml += `        <measure number="${bars+1}">
+    <note>
+        <pitch>${midiToPitch(scaleInfo.bass[0])}</pitch>
+        <duration>4</duration>
+        <type>whole</type>
+    </note>
+    <note>
+        <chord/>
+        <pitch>${midiToPitch(scaleInfo.bass[0]+12)}</pitch>
+        <duration>4</duration>
+        <type>whole</type>
+    </note>
+</measure>
 </part>
 </score-partwise>`;
+lastBassNotes.push({ midi: scaleInfo.bass[0], duration: "1n" });
+lastBassNotes.push({ midi: scaleInfo.bass[0] + 12, duration: "1n" });
+
+    // lastTrebleNotes = [];
+    // lastBassNotes = [];
 
     return musicXml;
 }
@@ -280,3 +296,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// Helper: Convert MIDI note number to Tone.js note name (e.g., 60 -> "C4")
+function midiToNoteName(midi) {
+    const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    const note = notes[midi % 12];
+    const octave = Math.floor(midi / 12) - 1;
+    return note + octave;
+}
+
+// Parse the last generated music and play it using Tone.js
+async function playGeneratedMusic() {
+    if (!lastTrebleNotes.length || !lastBassNotes.length) return;
+
+    const synth = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "triangle" }
+    }).toDestination();
+
+    Tone.Transport.stop();
+    Tone.Transport.cancel();
+    Tone.Transport.position = 0;
+    Tone.Transport.bpm.value = 90;
+
+    let time = 0;
+    const len = Math.max(lastTrebleNotes.length, lastBassNotes.length);
+
+    for (let i = 0; i < len; i++) {
+        const treble = lastTrebleNotes[i];
+        const bass1 = lastBassNotes[i];
+        const bass2 = (i === lastBassNotes.length - 2) ? lastBassNotes[i + 1] : null;
+
+        // If this is the last measure, play treble and both bass notes as a chord
+        if (i === lastTrebleNotes.length - 1 && bass2) {
+            Tone.Transport.schedule((t) => {
+                synth.triggerAttackRelease([
+                    midiToNoteName(treble.midi),
+                    midiToNoteName(bass1.midi),
+                    midiToNoteName(bass2.midi)
+                ], treble.duration, t);
+            }, time);
+            time += Tone.Time(treble.duration).toSeconds();
+            break; // Done
+        } else if (treble && bass1) {
+            // Normal quarter notes
+            Tone.Transport.schedule((t) => {
+                synth.triggerAttackRelease(midiToNoteName(treble.midi), treble.duration, t);
+                synth.triggerAttackRelease(midiToNoteName(bass1.midi), bass1.duration, t);
+            }, time);
+            time += Tone.Time(treble.duration).toSeconds();
+        }
+    }
+
+    // Stop the transport after the last note
+    Tone.Transport.scheduleOnce(() => {
+        Tone.Transport.stop();
+        Tone.Transport.position = 0;
+    }, time);
+
+    await Tone.start();
+    Tone.Transport.start();
+}
+
+// Attach event listener
+document.getElementById('playBtn').addEventListener('click', playGeneratedMusic);
+
+
