@@ -129,7 +129,7 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	const defaults = {
 		key: "C Major",
 		scale: "major",
-		bpm: 90,
+		bpm: 120,
 		bars: 8,
 		startTonic: true,
 		maxJump: 12,            // max melodic jump in semitones
