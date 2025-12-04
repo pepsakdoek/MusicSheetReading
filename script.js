@@ -305,59 +305,73 @@ function midiToNoteName(midi) {
     return note + octave;
 }
 
-// Parse the last generated music and play it using Tone.js
-async function playGeneratedMusic() {
+// --- Soundfont Playback ---
+
+let soundfontPlayer = null;
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+async function loadSoundfont() {
+    if (soundfontPlayer) return soundfontPlayer;
+    try {
+        console.log("Loading soundfont instrument...");
+        // Using 'acoustic_grand_piano' from the default soundfont collection
+        soundfontPlayer = await Soundfont.instrument(audioContext, 'acoustic_grand_piano');
+        console.log("Soundfont instrument loaded.");
+        return soundfontPlayer;
+    } catch (e) {
+        console.error("Error loading soundfont:", e);
+        alert("Failed to load soundfont. Check console for details.");
+        return null;
+    }
+}
+
+async function playWithSoundfont() {
     if (!lastTrebleNotes.length || !lastBassNotes.length) return;
 
-    const synth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle" }
-    }).toDestination();
+    // Resume audio context if it's suspended (required by modern browsers)
+    if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+    }
 
-    Tone.Transport.stop();
-    Tone.Transport.cancel();
-    Tone.Transport.position = 0;
-    Tone.Transport.bpm.value = 90;
+    const player = await loadSoundfont();
+    if (!player) return;
 
+    // Stop any currently playing notes before starting new playback
+    player.stop();
+
+    const now = audioContext.currentTime;
     let time = 0;
-    const len = Math.max(lastTrebleNotes.length, lastBassNotes.length);
+    // The loop should primarily be driven by the treble notes,
+    // as the bass has an extra note for the final chord.
+    const len = lastTrebleNotes.length;
+
+    // Tone.js duration "4n" (quarter note) needs to be converted to seconds.
+    // Assuming 90 bpm from the Tone.js player. 60 / 90 = 0.666... seconds per beat.
+    const quarterNoteDuration = 60 / 90;
+    const wholeNoteDuration = quarterNoteDuration * 4;
 
     for (let i = 0; i < len; i++) {
         const treble = lastTrebleNotes[i];
-        const bass1 = lastBassNotes[i];
-        const bass2 = (i === lastBassNotes.length - 2) ? lastBassNotes[i + 1] : null;
+        const bass1 = lastBassNotes[i]; // This is the first bass note for the current beat
+        // Check if this is the last treble note, and if there's a second bass note for the chord
+        const isLastTrebleNote = (i === len - 1);
+        const bass2 = isLastTrebleNote ? lastBassNotes[i + 1] : null;
 
-        // If this is the last measure, play treble and both bass notes as a chord
-        if (i === lastTrebleNotes.length - 1 && bass2) {
-            Tone.Transport.schedule((t) => {
-                synth.triggerAttackRelease([
-                    midiToNoteName(treble.midi),
-                    midiToNoteName(bass1.midi),
-                    midiToNoteName(bass2.midi)
-                ], treble.duration, t);
-            }, time);
-            time += Tone.Time(treble.duration).toSeconds();
-            break; // Done
-        } else if (treble && bass1) {
+        const duration = (treble && treble.duration === "1n") ? wholeNoteDuration : quarterNoteDuration;
+
+        if (isLastTrebleNote) {
+            // Play treble, bass1, and bass2 simultaneously for the final chord
+            if (treble) player.play(treble.midi, now + time, { duration: duration });
+            if (bass1) player.play(bass1.midi, now + time, { duration: duration });
+            if (bass2) player.play(bass2.midi, now + time, { duration: duration });
+        } else {
             // Normal quarter notes
-            Tone.Transport.schedule((t) => {
-                synth.triggerAttackRelease(midiToNoteName(treble.midi), treble.duration, t);
-                synth.triggerAttackRelease(midiToNoteName(bass1.midi), bass1.duration, t);
-            }, time);
-            time += Tone.Time(treble.duration).toSeconds();
+            if (treble) player.play(treble.midi, now + time, { duration: duration });
+            if (bass1) player.play(bass1.midi, now + time, { duration: duration });
         }
+
+        time += duration;
     }
-
-    // Stop the transport after the last note
-    Tone.Transport.scheduleOnce(() => {
-        Tone.Transport.stop();
-        Tone.Transport.position = 0;
-    }, time);
-
-    await Tone.start();
-    Tone.Transport.start();
 }
 
-// Attach event listener
-document.getElementById('playBtn').addEventListener('click', playGeneratedMusic);
-
-
+document.getElementById('playSoundfontBtn').addEventListener('click', playWithSoundfont);
