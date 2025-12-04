@@ -53,6 +53,21 @@
                     <option>Gb Major</option>
                 </select>
             </div>
+            <div class="mb-3">
+                <label class="block font-medium mb-1" for="scaleSelect">Scale</label>
+                <select id="scaleSelect" class="w-full border rounded px-2 py-1">
+                    <option value="major-pentatonic" selected>Major Pentatonic</option>
+                    <option value="minor-pentatonic">Minor Pentatonic</option>
+                    <option value="blues-minor">Blues Scale (Minor)</option>
+                    <option value="blues-major">Major Blues Scale</option>
+                    <option value="dorian">Dorian Mode</option>
+                    <option value="mixolydian">Mixolydian Mode</option>
+                    <option value="major">Natural Major (Ionian)</option>
+                    <option value="minor">Natural Minor (Aeolian)</option>
+                    <option value="harmonic-minor">Harmonic Minor</option>
+                    <option value="melodic-minor">Melodic Minor (Ascending)</option>
+                </select>
+            </div>
             <div class="mb-3 flex gap-4">
                 <div>
                     <label class="block font-medium mb-1" for="maxNotes">Max Notes per Hand (todo)</label>
@@ -83,9 +98,9 @@
         <button id="generateMusicBtn" class="btn mb-6 self-start" style="align-self: anchor-center;">Generate New Music</button>
     </div>
 
+    <script src="scales.js"></script>
     <script src="soundfont.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.4/build/opensheetmusicdisplay.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.min.js"></script>
     <script src="script.js"></script>
     https://opensheetmusicdisplay.org/
     <a href="license.txt" class="text-sm text-gray-500 mt-4 block">License</a>

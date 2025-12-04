@@ -20,11 +20,12 @@ function getPracticeOptions() {
     const maxJump = parseInt(document.getElementById('maxJump').value, 10) || 12;
     const startTonic = document.getElementById('startTonic').checked;
     const bars = parseInt(document.getElementById('measuresSelect').value, 10) || 8;
-    return { key, maxJump, startTonic, bars };
+    const scale = document.getElementById('scaleSelect').value;
+    return { key, maxJump, startTonic, bars, scale };
 }
 
 // Helper: get scale MIDI notes for a given key
-function getScaleMidiNotes(key) {
+function getScaleMidiNotes(key, scaleType = 'major') {
     // Only major keys for now
     const keyMap = {
         "C Major":  { fifths: 0,  tonic: 60 }, // C4
@@ -40,16 +41,14 @@ function getScaleMidiNotes(key) {
         "Db Major": { fifths: -5, tonic: 61 }, // Db4
         "Gb Major": { fifths: -6, tonic: 66 }, // Gb4
     };
-    const scalePatterns = {
-        major: [0, 2, 4, 5, 7, 9, 11, 12]
-    };
+    const scalePattern = SCALE_PATTERNS[scaleType] || SCALE_PATTERNS['major'];
     const info = keyMap[key] || keyMap["C Major"];
     // Build scale for two octaves (bass and treble)
     let scale = [];
     for (let octave = 3; octave <= 5; octave++) {
-        for (let i = 0; i < 7; i++) {
-            scale.push(info.tonic - 12 + scalePatterns.major[i] + 12 * (octave - 4));
-        }
+        scalePattern.forEach(interval => {
+            scale.push(info.tonic - 12 + interval + 12 * (octave - 4));
+        });
     }
     // Remove duplicates and sort
     scale = [...new Set(scale)].sort((a, b) => a - b);
@@ -64,8 +63,8 @@ function getScaleMidiNotes(key) {
 
 function generatepractice(title = "Practice", options = {}) {
     // Get options
-    const { key = "C Major", maxJump = 12, startTonic = true, bars = 8 } = options;
-    const scaleInfo = getScaleMidiNotes(key);
+    const { key = "C Major", maxJump = 12, startTonic = true, bars = 8, scale = 'major' } = options;
+    const scaleInfo = getScaleMidiNotes(key, scale);
 
     lastTrebleNotes = [];
     lastBassNotes = [];
