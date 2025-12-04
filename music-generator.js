@@ -79,23 +79,6 @@ function getChordNotes(scaleMidi, scalePattern, degree) {
    Duration helpers (for playback and MusicXML)
    ---------------------------------------- */
 
-// seconds per duration used by audio player
-function durationToSeconds(durationStr, bpm) {
-	const quarter = 60 / bpm;
-	switch (durationStr) {
-		case "1n":	return quarter * 4;
-		case "2n":	return quarter * 2;
-		case "4n":	return quarter;
-		case "8n":	return quarter / 2;
-		case "16n":	return quarter / 4;
-		case "4n.":	return quarter * 1.5;
-		case "8n.":	return (quarter / 2) * 1.5;
-		default:
-			console.warn("Unknown duration for seconds:", durationStr, "defaulting to quarter");
-			return quarter;
-	}
-}
-
 // MusicXML duration values: we'll use divisions=16 per quarter to allow 16th notes
 function durationToDivisions(durationStr, divisionsPerQuarter) {
 	switch (durationStr) {

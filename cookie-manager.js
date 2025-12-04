@@ -1,35 +1,21 @@
-function setCookie(name, value, days) {
-    let expires = "";
-    if (days) {
-        const date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toUTCString();
-    }
-    document.cookie = name + "=" + (value || "") + expires + "; path=/; SameSite=Lax";
-}
-
-function getCookie(name) {
-    const nameEQ = name + "=";
-    const ca = document.cookie.split(';');
-    for (let i = 0; i < ca.length; i++) {
-        let c = ca[i];
-        while (c.charAt(0) === ' ') c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length);
-    }
-    return null;
-}
-
 function saveOptionsToCookie(options) {
-    setCookie('practiceOptions', JSON.stringify(options), 365);
+    try {
+        // Use localStorage instead of cookies
+        localStorage.setItem('practiceOptions', JSON.stringify(options));
+    } catch (e) {
+        console.error("Error saving options to localStorage:", e);
+    }
 }
 
 function loadOptionsFromCookie() {
-    const savedOptions = getCookie('practiceOptions');
+    // The function name is kept for now to avoid breaking script.js,
+    // but it now loads from localStorage.
+    const savedOptions = localStorage.getItem('practiceOptions');
     if (savedOptions) {
         try {
             return JSON.parse(savedOptions);
         } catch (e) {
-            console.error("Error parsing saved options from cookie:", e);
+            console.error("Error parsing saved options from localStorage:", e);
         }
     }
     return null;
