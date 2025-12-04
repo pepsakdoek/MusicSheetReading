@@ -43,13 +43,14 @@ function getScaleMidiNotes(key, scaleType = 'major') {
     };
     const scalePattern = SCALE_PATTERNS[scaleType] || SCALE_PATTERNS['major'];
     const info = keyMap[key] || keyMap["C Major"];
-    // Build scale for two octaves (bass and treble)
+    // Build scale around the tonic for several octaves
     let scale = [];
-    for (let octave = 3; octave <= 5; octave++) {
-        scalePattern.forEach(interval => {
-            scale.push(info.tonic - 12 + interval + 12 * (octave - 4));
-        });
-    }
+    scalePattern.forEach(interval => {
+        scale.push(info.tonic - 24 + interval);
+        scale.push(info.tonic - 12 + interval);
+        scale.push(info.tonic + interval);
+        scale.push(info.tonic + 12 + interval);
+    });
     // Remove duplicates and sort
     scale = [...new Set(scale)].sort((a, b) => a - b);
     // Treble: midi >= 60, Bass: midi <= 59
@@ -59,6 +60,30 @@ function getScaleMidiNotes(key, scaleType = 'major') {
         fifths: info.fifths,
         tonic: info.tonic
     };
+}
+
+// Helper: get MIDI notes for a given chord in a scale
+function getChordNotes(scaleMidi, scalePattern, degree) {
+    const rootNote = scaleMidi[degree - 1];
+    if (rootNote === undefined) return []; // Invalid degree
+
+    // To build chords correctly, we need the intervals of the scale itself.
+    const rootOffset = scalePattern[degree - 1];
+    const thirdInterval = scalePattern[(degree - 1 + 2) % scalePattern.length] - rootOffset;
+    const fifthInterval = scalePattern[(degree - 1 + 4) % scalePattern.length] - rootOffset;
+
+    // Normalize intervals to be within an octave for chord construction
+    const third = rootNote + (thirdInterval < 0 ? thirdInterval + 12 : thirdInterval);
+    const fifth = rootNote + (fifthInterval < 0 ? fifthInterval + 12 : fifthInterval);
+    const chord = [rootNote, third, fifth];
+
+    // Arpeggiate across multiple octaves within the bass range
+    const bassChordNotes = [];
+    for (let note of chord) {
+        bassChordNotes.push(note - 24, note - 12, note, note + 12);
+    }
+
+    return [...new Set(bassChordNotes)].filter(n => n >= 36 && n <= 59).sort((a, b) => a - b);
 }
 
 function generatepractice(title = "Practice", options = {}) {
@@ -146,6 +171,13 @@ function generatepractice(title = "Practice", options = {}) {
     }
 
     musicXml += `        <measure number="${bars+1}">
+`;
+    // Determine closest octave for the final note (C4 or C5)
+    const c4Distance = Math.abs(scaleInfo.tonic - prevMidi);
+    const c5Distance = Math.abs(scaleInfo.tonic + 12 - prevMidi);
+    const finalNoteMidi = (c4Distance <= c5Distance) ? scaleInfo.tonic : scaleInfo.tonic + 12;
+
+    musicXml += `
     <note>
         <pitch>${midiToPitch(scaleInfo.tonic + 12)}</pitch>
         <duration>4</duration>
@@ -159,7 +191,10 @@ lastTrebleNotes.push({ midi: scaleInfo.tonic + 12, duration: "1n" });
 
 // Bass staff
     prevMidi = null;
-    let prevTrebleMidi = null;
+    // Choose a chord progression
+    const progression = (CHORD_PROGRESSIONS[bars] && CHORD_PROGRESSIONS[bars][0]) || ['I', 'IV', 'V', 'I']; // Default progression
+    const romanNumerals = { 'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5, 'VI': 6, 'VII': 7 };
+
     for (let i = 1; i <= bars-1; i++) { // <--- use bars
         musicXml += `        <measure number="${i}">\n`;
         if (i === 1) {
@@ -170,62 +205,28 @@ lastTrebleNotes.push({ midi: scaleInfo.tonic + 12, duration: "1n" });
                 <clef><sign>F</sign><line>4</line></clef>
             </attributes>\n`;
         }
-        for (let j = 0; j < 4; j++) {
-            // Find the corresponding treble note for this beat
-            // We'll reconstruct the treble notes for this measure
-            let trebleMidi;
-            if (i === 1 && j === 0 && startTonic) {
-                trebleMidi = scaleInfo.tonic;
-            } else {
-                // Reconstruct the treble note for this beat
-                // Use the same logic as above
-                if (i === 1 && j === 0) {
-                    trebleMidi = scaleInfo.treble[Math.floor(Math.random() * scaleInfo.treble.length)];
-                } else if (prevTrebleMidi !== null) {
-                    const candidates = scaleInfo.treble.filter(m => Math.abs(m - prevTrebleMidi) <= maxJump);
-                    trebleMidi = candidates.length > 0
-                        ? candidates[Math.floor(Math.random() * candidates.length)]
-                        : scaleInfo.treble[Math.floor(Math.random() * scaleInfo.treble.length)];
-                } else {
-                    trebleMidi = scaleInfo.treble[Math.floor(Math.random() * scaleInfo.treble.length)];
-                }
-            }
-            prevTrebleMidi = trebleMidi;
 
+        // Get the chord for the current bar
+        const chordSymbol = progression[(i - 1) % progression.length].toLowerCase();
+        const chordDegree = romanNumerals[chordSymbol.toUpperCase()];
+        const fullScale = [...new Set([...scaleInfo.bass, ...scaleInfo.treble])].sort((a, b) => a - b);
+        const scalePattern = SCALE_PATTERNS[scale] || SCALE_PATTERNS['major'];
+        const chordNotes = getChordNotes(fullScale, scalePattern, chordDegree);
+
+        for (let j = 0; j < 4; j++) {
             let randomMidi;
-            if (i === 1 && j === 0 && startTonic) {
+            if (i === 1 && j === 0 && startTonic && chordDegree === 1) {
                 randomMidi = scaleInfo.tonic - 12;
-                if (!scaleInfo.bass.includes(randomMidi)) {
-                    randomMidi = scaleInfo.bass[0];
-                }
+                if (!chordNotes.includes(randomMidi)) randomMidi = chordNotes[0] || scaleInfo.bass[0];
+            } else if (prevMidi !== null) {
+                const candidates = chordNotes.filter(m => Math.abs(m - prevMidi) <= maxJump);
+                randomMidi = candidates.length > 0
+                    ? candidates[Math.floor(Math.random() * candidates.length)]
+                    : chordNotes[Math.floor(Math.random() * chordNotes.length)];
             } else {
-                // Try to find a non-dissonant note within maxJump of previous bass note
-                // We'll define "non-dissonant" as: bass note is a chord tone (unison, 3rd, 5th, 6th, octave) below the treble note
-                const allowedIntervals = [0, 3, 4, 5, 7, 8, 9, 12]; // unison, minor/major 3rd, 4th, 5th, 6th, octave
-                let candidates = [];
-                for (let interval = -maxJump; interval <= maxJump; interval++) {
-                    let candidate = trebleMidi + interval;
-                    if (
-                        scaleInfo.bass.includes(candidate) &&
-                        allowedIntervals.includes(Math.abs(candidate - trebleMidi))
-                    ) {
-                        if (prevMidi === null || Math.abs(candidate - prevMidi) <= maxJump) {
-                            candidates.push(candidate);
-                        }
-                    }
-                }
-                if (candidates.length > 0) {
-                    randomMidi = candidates[Math.floor(Math.random() * candidates.length)];
-                } else if (prevMidi !== null) {
-                    // fallback: just maxJump from previous bass note
-                    const fallback = scaleInfo.bass.filter(m => Math.abs(m - prevMidi) <= maxJump);
-                    randomMidi = fallback.length > 0
-                        ? fallback[Math.floor(Math.random() * fallback.length)]
-                        : scaleInfo.bass[Math.floor(Math.random() * scaleInfo.bass.length)];
-                } else {
-                    randomMidi = scaleInfo.bass[Math.floor(Math.random() * scaleInfo.bass.length)];
-                }
+                randomMidi = chordNotes.length > 0 ? chordNotes[Math.floor(Math.random() * chordNotes.length)] : scaleInfo.bass[Math.floor(Math.random() * scaleInfo.bass.length)];
             }
+
             prevMidi = randomMidi;
             // For quarter notes (inside the loop)
             lastBassNotes.push({ midi: randomMidi, duration: "4n" });
@@ -239,21 +240,21 @@ lastTrebleNotes.push({ midi: scaleInfo.tonic + 12, duration: "1n" });
     }
     musicXml += `        <measure number="${bars+1}">
     <note>
-        <pitch>${midiToPitch(scaleInfo.bass[0])}</pitch>
+        <pitch>${midiToPitch(scaleInfo.tonic - 12)}</pitch>
         <duration>4</duration>
         <type>whole</type>
     </note>
     <note>
         <chord/>
-        <pitch>${midiToPitch(scaleInfo.bass[0]+12)}</pitch>
+        <pitch>${midiToPitch(scaleInfo.tonic)}</pitch>
         <duration>4</duration>
         <type>whole</type>
     </note>
 </measure>
 </part>
 </score-partwise>`;
-lastBassNotes.push({ midi: scaleInfo.bass[0], duration: "1n" });
-lastBassNotes.push({ midi: scaleInfo.bass[0] + 12, duration: "1n" });
+lastBassNotes.push({ midi: scaleInfo.tonic - 12, duration: "1n" });
+lastBassNotes.push({ midi: scaleInfo.tonic, duration: "1n" });
 
     // lastTrebleNotes = [];
     // lastBassNotes = [];
@@ -263,8 +264,9 @@ lastBassNotes.push({ midi: scaleInfo.bass[0] + 12, duration: "1n" });
 
 let practicecount = 1;
 function loadAndRenderGeneratedMusic() {
-    const title = `Practice ${practicecount++}`;
     const options = getPracticeOptions();
+    const scaleName = SCALE_NAMES[options.scale] || 'Major';
+    const title = `Practice ${practicecount++} (${options.key}, ${scaleName})`;
     const generatedMusicXml = generatepractice(title, options);
     osmd.load(generatedMusicXml)
         .then(() => {

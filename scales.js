@@ -25,3 +25,10 @@ const SCALE_NAMES = {
     'harmonic-minor': 'Harmonic Minor',
     'melodic-minor': 'Melodic Minor (Ascending)',
 };
+
+// Chord progressions per number of bars
+const CHORD_PROGRESSIONS = {
+    2: [['I', 'V']],
+    4: [['I', 'IV', 'V', 'I']],
+    8: [['I', 'IV', 'V', 'I', 'vi', 'IV', 'V', 'I']],
+};
