@@ -286,7 +286,10 @@ function renderScoreToMusicXML(score) {
 	xml += `<score-partwise version="3.1">\n`;
 	xml += `\t<work>\n\t\t<work-title>${meta.title || "Practice"}</work-title>\n\t</work>\n`;
 	xml += `\t<part-list>\n`;
+    xml += `<part-group type="start" number="1"><group-symbol>brace</group-symbol><group-barline>yes</group-barline></part-group>\n`;
+
 	// create part-list entries
+    
 	for (let i = 0; i < score.parts.length; i++) {
 		const pid = `P${i+1}`;
 		xml += `\t\t<score-part id="${pid}">\n`;
@@ -369,6 +372,13 @@ function renderScoreToMusicXML(score) {
 					firstOfChordFlag = false;
 					continue;
 				}
+			}
+
+			// Add a final barline to the last measure
+			if (measureNumber === part.measures.length) {
+				xml += `\t\t\t<barline location="right">\n`;
+				xml += `\t\t\t\t<bar-style>light-heavy</bar-style>\n`;
+				xml += `\t\t\t</barline>\n`;
 			}
 
 			xml += `\t\t</measure>\n`;
