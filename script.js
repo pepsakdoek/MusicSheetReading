@@ -5,6 +5,7 @@ const osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay("osmd-container");
 let lastTrebleNotes = [];
 let lastBassNotes = [];
 let practicecount = 1;
+let score = null;
 
 function getPracticeOptions() {
     // Read options from the UI
@@ -20,15 +21,16 @@ function loadAndRenderGeneratedMusic() {
     const options = getPracticeOptions();
     const scaleName = SCALE_NAMES[options.scale] || 'Major';
     const title = `Practice ${practicecount++} (${options.key}, ${scaleName})`;
-    const { musicXml, lastTrebleNotes: treble, lastBassNotes: bass } = generatePractice(title, options);
+    // generatePractice returns { score, musicXml }. We need to assign the returned score
+    // to the global `score` variable so playMusic() can access it.
+    const result = generatePractice(title, options);
+    score = result.score; // Assign to the global score variable
 
-    osmd.load(musicXml).then(() => {
+    osmd.load(result.musicXml).then(() => {
         osmd.EngravingRules.VoiceSpacingMultiplierVexflow = 2;
         osmd.EngravingRules.VoiceSpacingAddendVexflow = 3;
         osmd.render();
         document.title = title;
-        lastTrebleNotes = treble;
-        lastBassNotes = bass;
         console.log("MusicXML successfully loaded and rendered.");
     }).catch((error) => {
         console.error("Error loading or rendering MusicXML:", error);
@@ -69,5 +71,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('playSoundfontBtn').addEventListener('click', () => playMusic(lastTrebleNotes, lastBassNotes));
+    document.getElementById('playSoundfontBtn').addEventListener('click', () => playMusic(score));
 });
