@@ -25,7 +25,7 @@ function loadAndRenderGeneratedMusic() {
     // generatePractice returns { score, musicXml }. We need to assign the returned score
     // to the global `score` variable so playMusic() can access it.
     const result = generatePractice(title, options);
-    console.log(result.score);
+    console.log(result.musicXml);
     score = result.score; // Assign to the global score variable
 
     osmd.load(result.musicXml).then(() => {

@@ -6,6 +6,163 @@
 // (from your scales.js). If you prefer, those can be imported/duplicated here.
 
 
+function generatePracticeScore(title = "Practice", options) {
+	console.log("Generating practice score:", title, options);
+	// defaults
+	options = options || {};
+	const key = options.key || "C";
+	const scale = options.scale || "major";
+	const bars = options.bars || 8;
+	const layers = Number.isInteger(options.layers) ? options.layers : 1;
+	//const title = options.title || "Practice Piece";
+	const mode = options.mode || "layered";
+	const seed = options.seed || null;
+
+	// configuration for voice ranges and divisions (these names match helpers' expectations)
+	const cfg = Object.assign({
+		bars: bars,
+		trebleLow: 60,    // Middle C (C4) and above for treble by default
+		trebleHigh: 84,   // C6
+		bassLow: 36,      // C2
+		bassHigh: 60,     // C4 (middle C)
+		divisions: 480    // default MusicXML divisions per quarter
+	}, options.cfg || {});
+
+	// progression: prefer explicit option, otherwise a default I-IV-V-I style progression repeated
+	let progression = options.progression && options.progression.length ? options.progression.slice(0, bars) : null;
+	if (!progression) {
+		// default sequence repeated to reach bars
+		const defaultProg = ['I','IV','V','I'];
+		progression = [];
+		for (let i = 0; i < bars; i++) progression.push(defaultProg[i % defaultProg.length]);
+	}
+
+	// retrieve scale information (expects helper: getScaleInfo(key, scale) -> { fullScale, pattern, tonic })
+	// If you have a different method, adapt this call.
+	let scaleInfo = null;
+	if (typeof getScaleInfo === "function") {
+		scaleInfo = getScaleInfo(key, scale);
+	} else {
+		// fallback: attempt to compute a simple C-major style mapping (very small fallback)
+		const tonicMidi = 60; // middle C as fallback tonic
+		scaleInfo = {
+			fullScale: [48,50,52,53,55,57,59,60,62,64,65,67,69,71,72], // two-octave-ish chromatic-ish fallback
+			pattern: "major",
+			tonic: tonicMidi
+		};
+	}
+
+	// Build base score (whole-note chord per bar)
+	const baseScore = buildBaseScoreFromProgression(progression, cfg, {
+		fullScale: scaleInfo.fullScale,
+		pattern: scaleInfo.pattern,
+		tonic: scaleInfo.tonic
+	});
+
+	// Make sure parts exist
+	let treble = baseScore.parts && baseScore.parts[0] ? baseScore.parts[0] : { id: "treble", clef: "G", measures: [] };
+	let bass = baseScore.parts && baseScore.parts[1] ? baseScore.parts[1] : { id: "bass", clef: "F", measures: [] };
+
+	// Ensure both parts have measures length equal to cfg.bars
+	treble.measures = treble.measures || [];
+	bass.measures = bass.measures || [];
+	for (let i = 0; i < cfg.bars; i++) {
+		if (!treble.measures[i]) treble.measures[i] = [ makeRest("1n") ];
+		if (!bass.measures[i]) bass.measures[i] = [ makeRest("1n") ];
+	}
+
+	// Apply complexity layers deterministically
+	// Each call transforms the current durations into the next level of rhythmic/harmonic complexity
+	for (let L = 1; L <= layers; L++) {
+		applyComplexityLayer({ parts: [treble, bass] }, L, cfg, {
+			fullScale: scaleInfo.fullScale,
+			pattern: scaleInfo.pattern,
+			tonic: scaleInfo.tonic
+		}, progression);
+	}
+
+	// Final normalization pass:
+	//	- ensure no measure exceeds total duration per bar (1 whole = "1n")
+	//	- if a measure is shorter than a bar, pad with rests (deterministic)
+	//	- convert events to the renderer's expected event shape if necessary
+	const durationToBeat = (dur) => {
+		// simple mapping to quarter-note beats for internal checks
+		const map = { "1n": 4, "2n": 2, "4n": 1, "8n": 0.5, "16n": 0.25, "4n.": 1.5, "2n.": 3 };
+		return map[dur] || 0;
+	};
+	const beatsPerBar = 4;
+
+	function normalizePart(part) {
+		for (let m = 0; m < part.measures.length; m++) {
+			const measure = part.measures[m];
+			let sum = 0;
+			for (let e = 0; e < measure.length; e++) {
+				const ev = measure[e];
+				if (!ev || !ev.duration) continue;
+				sum += durationToBeat(ev.duration);
+			}
+			// If too long, truncate deterministically from end (keep earliest material)
+			if (sum > beatsPerBar + 0.0001) {
+				let remain = beatsPerBar;
+				const kept = [];
+				for (let e = 0; e < measure.length; e++) {
+					const ev = measure[e];
+					const d = durationToBeat(ev.duration) || 0;
+					if (d <= remain + 0.0001) {
+						kept.push(ev);
+						remain -= d;
+					} else {
+						// cannot fit this event, skip it
+						break;
+					}
+				}
+				part.measures[m] = kept.length ? kept : [ makeRest("4n") ];
+			} else if (sum < beatsPerBar - 0.0001) {
+				// pad deterministically with one rest of the remaining duration (approximate using largest fitting duration)
+				let remainingBeats = beatsPerBar - sum;
+				const pad = [];
+				while (remainingBeats > 0.0001) {
+					if (remainingBeats >= 2) { pad.push(makeRest("2n")); remainingBeats -= 2; continue; }
+					if (remainingBeats >= 1) { pad.push(makeRest("4n")); remainingBeats -= 1; continue; }
+					if (remainingBeats >= 0.5) { pad.push(makeRest("8n")); remainingBeats -= 0.5; continue; }
+					// tiny remainder -> 16th
+					pad.push(makeRest("16n")); remainingBeats -= 0.25;
+				}
+				part.measures[m] = (part.measures[m] || []).concat(pad);
+			}
+		}
+	}
+
+	normalizePart(treble);
+	normalizePart(bass);
+
+	// Build final score object in shape expected by your renderer
+	const score = {
+		title: title,
+		meta: {
+			key: key,
+			scale: scale,
+			bars: cfg.bars,
+			progression: progression.slice(0, cfg.bars),
+			layers: layers
+		},
+		parts: [treble, bass],
+		cfg: cfg
+	};
+
+	// Render to MusicXML using your existing renderer (expects: renderScoreToMusicXML(score, cfg) -> xml)
+	let musicXml = "";
+	if (typeof renderScoreToMusicXML === "function") {
+		musicXml = renderScoreToMusicXML(score);
+	} else {
+		// fallback: if no renderer available, produce a JSON string as placeholder
+		musicXml = "<!-- MusicXML renderer not found. Score object below as JSON -->\n" + JSON.stringify(score, null, 2);
+	}
+
+	return { score: score, musicXml: musicXml };
+}
+
+
 /* ----------------------------------------
    Generator: produce score object
    ---------------------------------------- */
@@ -20,8 +177,8 @@
 		]
 	}
 */
-function generatePracticeScore(title = "Practice", options = {}) {
-
+function generatePracticeScoreOld(title = "Practice", options = {}) {
+	console.log("Generating practice score:", title, options);
 	// ---------------------------------------
 	// 1. Apply defaults + difficulty presets
 	// ---------------------------------------
@@ -161,7 +318,7 @@ function renderScoreToMusicXML(score) {
     xml += `<part-group type="start" number="1"><group-symbol>brace</group-symbol><group-barline>yes</group-barline></part-group>\n`;
 
 	// create part-list entries
-    
+
 	for (let i = 0; i < score.parts.length; i++) {
 		const pid = `P${i+1}`;
 		xml += `\t\t<score-part id="${pid}">\n`;
@@ -170,8 +327,10 @@ function renderScoreToMusicXML(score) {
 	}
 	xml += `\t</part-list>\n`;
 
+
 	// each part -> measures
 	for (let p = 0; p < score.parts.length; p++) {
+		
 		const part = score.parts[p];
 		const pid = `P${p+1}`;
 		xml += `\t<part id="${pid}">\n`;
@@ -284,8 +443,8 @@ function renderScoreToMusicXML(score) {
 
 		xml += `\t</part>\n`;
 	}
-
 	xml += `</score-partwise>`;
+	console.log("Generated MusicXML:", xml);
 	return xml;
 }
 
