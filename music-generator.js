@@ -38,18 +38,14 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	const trebleRange = scaleInfo.treble.length ? scaleInfo.treble : fullScale.filter(n => n >= 60 && n <= 84);
 	const bassRange = scaleInfo.bass.length ? scaleInfo.bass : fullScale.filter(n => n >= 36 && n <= 59);
 
-	console.log("Treble range:", trebleRange);
-	console.log("Bass range:", bassRange);
-	console.log("Full scale:", fullScale);
-
 	const phraseBars = cfg.phraseLength || 4;
 	const numPhrases = Math.ceil(cfg.bars / phraseBars);
 
 	// Select a chord progression for the entire piece
 	const progressionOptions = CHORD_PROGRESSIONS[cfg.bars] || CHORD_PROGRESSIONS[8] || CHORD_PROGRESSIONS[4];
 	const progression = progressionOptions[Math.floor(Math.random() * progressionOptions.length)];
-
-
+	
+	console.log("Chord progression (roman):", progression);
 	console.log("numPhrases:", numPhrases);
 
 	const treblePhrases = [];
@@ -204,8 +200,25 @@ function renderScoreToMusicXML(score) {
 			}
 
 			// emit each event as MusicXML notes/rests
-			let firstOfChordFlag = false;
-			for (let ev of measureEvents) {
+			// Precompute beam roles for this measure (simple grouping of consecutive 8th/16th notes)
+			const beamableBases = {"8n":true, "16n":true};
+			const beamRoles = new Array(measureEvents.length);
+			for (let i = 0; i < measureEvents.length; i++) {
+				const ev = measureEvents[i];
+				if (!ev) { beamRoles[i] = null; continue; }
+				const base = (ev.duration || "4n").replace(/\.+/g, "");
+				const isBeamable = !!beamableBases[base] && ev.type !== "rest";
+				const prev = i > 0 && measureEvents[i-1] && !!beamableBases[((measureEvents[i-1].duration||"").replace(/\.+/g, ""))] && measureEvents[i-1].type !== "rest";
+				const next = i < measureEvents.length - 1 && measureEvents[i+1] && !!beamableBases[((measureEvents[i+1].duration||"").replace(/\.+/g, ""))] && measureEvents[i+1].type !== "rest";
+				if (!isBeamable) beamRoles[i] = null;
+				else if (!prev && !next) beamRoles[i] = "none";
+				else if (!prev && next) beamRoles[i] = "begin";
+				else if (prev && next) beamRoles[i] = "continue";
+				else if (prev && !next) beamRoles[i] = "end";
+			}
+
+			for (let i = 0; i < measureEvents.length; i++) {
+				const ev = measureEvents[i];
 				if (!ev) continue;
 
 				// Compute duration in MusicXML divisions
@@ -218,8 +231,19 @@ function renderScoreToMusicXML(score) {
 					xml += `\t\t\t\t<duration>${durVal}</duration>\n`;
 					xml += `\t\t\t\t<type>${musicxmlTypeForDuration(ev.duration)}</type>\n`;
 					xml += `\t\t\t</note>\n`;
-					firstOfChordFlag = false;
 					continue;
+				}
+
+				// helper to append type/dot/beam for a given event index
+				function appendTypeDotBeam(eventIndex) {
+					xml += `\t\t\t\t<type>${musicxmlTypeForDuration(ev.duration)}</type>\n`;
+					if ((ev.duration || "").indexOf('.') >= 0) {
+						xml += `\t\t\t\t<dot/>\n`;
+					}
+					const role = beamRoles[eventIndex];
+					if (role) {
+						xml += `\t\t\t\t<beam number="1">${role}</beam>\n`;
+					}
 				}
 
 				// handle single note
@@ -227,9 +251,8 @@ function renderScoreToMusicXML(score) {
 					xml += `\t\t\t<note>\n`;
 					xml += `\t\t\t\t<pitch>${midiToPitch(ev.midi)}</pitch>\n`;
 					xml += `\t\t\t\t<duration>${durVal}</duration>\n`;
-					xml += `\t\t\t\t<type>${musicxmlTypeForDuration(ev.duration)}</type>\n`;
+					appendTypeDotBeam(i);
 					xml += `\t\t\t</note>\n`;
-					firstOfChordFlag = false;
 					continue;
 				}
 
@@ -242,10 +265,9 @@ function renderScoreToMusicXML(score) {
 						if (ni > 0) xml += `\t\t\t\t<chord/>\n`;
 						xml += `\t\t\t\t<pitch>${midiToPitch(notes[ni])}</pitch>\n`;
 						xml += `\t\t\t\t<duration>${durVal}</duration>\n`;
-						xml += `\t\t\t\t<type>${musicxmlTypeForDuration(ev.duration)}</type>\n`;
+						appendTypeDotBeam(i);
 						xml += `\t\t\t</note>\n`;
 					}
-					firstOfChordFlag = false;
 					continue;
 				}
 			}
@@ -269,15 +291,15 @@ function renderScoreToMusicXML(score) {
 
 // helper to choose a MusicXML <type> string from our duration tokens
 function musicxmlTypeForDuration(dur) {
-	switch (dur) {
+	// Normalize: strip dots (we handle dots separately via <dot/>)
+	const base = (dur || "").replace(/\.+/g, "");
+	switch (base) {
 		case "1n":	return "whole";
 		case "2n":	return "half";
 		case "4n":	return "quarter";
 		case "8n":	return "eighth";
 		case "16n":	return "16th";
-		case "4n.":	return "quarter"; // type remains quarter but duration will be longer (dotted)
-		case "8n.":	return "eighth";
-		default:	return "quarter";
+		default: return "quarter";
 	}
 }
 

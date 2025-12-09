@@ -23,8 +23,8 @@ function applyConfigDefaults(options) {
 		bassHigh: 60,    // Middle C
 
 		// leaps and motion
-		maxLeapTreble: 5,
-		maxLeapBass: 8,
+		maxLeapTreble: 4,
+		maxLeapBass: 5,
 		melodicDirectionBias: 0,   // -1 = descending tendency, +1 = ascending
 		chordalEmphasis: 0.8,      // Probability of emphasizing chord tones
 		motifRepetition: 0.35,
@@ -60,8 +60,8 @@ function applyConfigDefaults(options) {
 		hard: {
 			rhythmComplexity: "complex",
 			longNoteFrequency: 0.15,
-			maxLeapTreble: 7,
-			maxLeapBass: 9,
+			maxLeapTreble: 4,
+			maxLeapBass: 5,
 			motifRepetition: 0.35
 		}
 	};
