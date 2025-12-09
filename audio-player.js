@@ -87,18 +87,20 @@ function playPart(part, startTime, quarterNoteDuration, player) {
 
 /**
  * Play the score output from MusicGenerator
+ * Returns a controller object with `stop()`, `isPlaying`, and a `finished` Promise
  */
 async function playMusic(score) {
-    console.log(score);
-	if (!score || !score.parts || score.parts.length === 0) return;
+	console.log(score);
+	if (!score || !score.parts || score.parts.length === 0) return null;
 
 	if (audioContext.state === 'suspended') {
 		await audioContext.resume();
 	}
 
 	const player = await loadSoundfont();
-	if (!player) return;
+	if (!player) return null;
 
+	// Stop any currently scheduled notes on the player
 	player.stop();
 
 	const BPM = score.meta?.bpm || 90;
@@ -106,9 +108,29 @@ async function playMusic(score) {
 
 	// Determine total number of measures
 	const totalBars = score.parts[0]?.measures?.length || 0;
-	let currentTime = 0;
 
-	// Play all parts measure by measure, keeping them bar-aligned
+	// Calculate total duration in seconds so we can detect natural end
+	let totalDuration = 0;
+	for (let bar = 0; bar < totalBars; bar++) {
+		let maxBarDuration = 0;
+
+		for (const part of score.parts) {
+			const measureEvents = part.measures[bar] || [];
+			let time = 0;
+
+			for (const ev of measureEvents) {
+				const seconds = durationToSeconds(ev.duration || "4n", quarterNoteDuration);
+				time += seconds;
+			}
+
+			if (time > maxBarDuration) maxBarDuration = time;
+		}
+
+		totalDuration += maxBarDuration;
+	}
+
+	// Schedule playback
+	let currentTime = 0;
 	for (let bar = 0; bar < totalBars; bar++) {
 		let maxBarDuration = 0;
 
@@ -125,7 +147,31 @@ async function playMusic(score) {
 			if (time > maxBarDuration) maxBarDuration = time;
 		}
 
-		// Advance currentTime by the longest measure among parts
 		currentTime += maxBarDuration;
 	}
+
+	// Create a promise that resolves when playback finishes (naturally or by stop)
+	let resolveFinished;
+	const finished = new Promise((resolve) => { resolveFinished = resolve; });
+
+	let isPlaying = true;
+	// Safety timer to detect natural end of scheduled playback
+	const endTimer = setTimeout(() => {
+		if (isPlaying) {
+			isPlaying = false;
+			resolveFinished();
+		}
+	}, Math.max(0, totalDuration * 1000) + 50);
+
+	return {
+		get isPlaying() { return isPlaying; },
+		stop: function() {
+			if (!isPlaying) return;
+			isPlaying = false;
+			clearTimeout(endTimer);
+			try { player.stop(); } catch (e) { /* ignore */ }
+			resolveFinished();
+		},
+		finished
+	};
 }

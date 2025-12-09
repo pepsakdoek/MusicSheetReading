@@ -6,6 +6,7 @@ let lastTrebleNotes = [];
 let lastBassNotes = [];
 let practicecount = 1;
 let score = null;
+let audioControl = null; // To hold the audio player instance
 
 function getPracticeOptions() {
     // Read options from the UI
@@ -72,5 +73,36 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('playSoundfontBtn').addEventListener('click', () => playMusic(score));
+    const playBtn = document.getElementById('playSoundfontBtn');
+    playBtn.addEventListener('click', async () => {
+        if (audioControl && audioControl.isPlaying) {
+            // If music is playing, stop it.
+            audioControl.stop();
+            audioControl = null;
+            playBtn.textContent = 'Play';
+        } else {
+            // If music is not playing, start it.
+            playBtn.textContent = 'Stop';
+            audioControl = await playMusic(score);
+            if (!audioControl) {
+                // If playMusic failed, reset button
+                playBtn.textContent = 'Play';
+                return;
+            }
+
+            // When playback naturally finishes (or stop() is called), reset UI
+            const ctrl = audioControl;
+            if (ctrl.finished && typeof ctrl.finished.then === 'function') {
+                ctrl.finished.then(() => {
+                    // Only reset if this is still the active control
+                    if (audioControl === ctrl) {
+                        playBtn.textContent = 'Play';
+                        audioControl = null;
+                    }
+                }).catch(() => {
+                    // ignore
+                });
+            }
+        }
+    });
 });
