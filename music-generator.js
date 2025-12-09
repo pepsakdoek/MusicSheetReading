@@ -45,6 +45,11 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	const phraseBars = cfg.phraseLength || 4;
 	const numPhrases = Math.ceil(cfg.bars / phraseBars);
 
+	// Select a chord progression for the entire piece
+	const progressionOptions = CHORD_PROGRESSIONS[cfg.bars] || CHORD_PROGRESSIONS[8] || CHORD_PROGRESSIONS[4];
+	const progression = progressionOptions[Math.floor(Math.random() * progressionOptions.length)];
+
+
 	console.log("numPhrases:", numPhrases);
 
 	const treblePhrases = [];
@@ -55,27 +60,30 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	// 3. Generate all phrases for both voices
 	// ---------------------------------------
 	for (let i = 0; i < numPhrases; i++) {
+		const phraseChords = progression.slice(i * phraseBars, (i + 1) * phraseBars);
+		const scaleCtx = { fullScale, pattern };
+		scaleCtx.tonic = scaleInfo.tonic;
 		treblePhrases.push(
-			makePhrase(
+			makeChordAwarePhrase(
 				trebleRange,
+				phraseChords,
 				phraseBars,
 				cfg.beatsPerBar, 	// beatsPerBar
 				false,					// isBass
 				cfg,
-				makeMotif,
-				pickDuration
+				scaleCtx
 			)
 		);
 
 		bassPhrases.push(
-			makePhrase(
+			makeChordAwarePhrase(
 				bassRange,
+				phraseChords,
 				phraseBars,
 				cfg.beatsPerBar,
 				true,
 				cfg,
-				makeMotif,
-				pickDuration
+				scaleCtx
 			)
 		);
 	}
@@ -84,9 +92,9 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	// ---------------------------------------
 	// 4. Apply call/response shaping
 	// ---------------------------------------
-	if (cfg.callResponseEnabled) {
-		applyCallResponse(treblePhrases, bassPhrases, fullScale, pattern, cfg, phraseBars);
-	}
+	// if (cfg.callResponseEnabled) {
+	// 	applyCallResponse(treblePhrases, bassPhrases, fullScale, pattern, cfg, phraseBars);
+	// }
 
 
 	// ---------------------------------------
@@ -96,8 +104,8 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	const bass = { id: "bass", clef: "F", measures: [], events: [] };
 
 	for (let p = 0; p < numPhrases; p++) {
-		const tMeasures = phraseToMeasures(treblePhrases[p], phraseBars, cfg.beatsPerBar);
-		const bMeasures = phraseToMeasures(bassPhrases[p], phraseBars, cfg.beatsPerBar);
+		const tMeasures = phraseToMeasures(treblePhrases[p], phraseBars, cfg.beatsPerBar, cfg.divisionsPerQuarter);
+		const bMeasures = phraseToMeasures(bassPhrases[p], phraseBars, cfg.beatsPerBar, cfg.divisionsPerQuarter);
 
 		// applyBassPatterns(bMeasures, fullScale, pattern, cfg, p * phraseBars);
 		// applyTrebleChordPlacement(tMeasures, fullScale, pattern, cfg, p * phraseBars);
@@ -111,7 +119,7 @@ function generatePracticeScore(title = "Practice", options = {}) {
 	// 6. Apply cadence 
 	// ---------------------------------------
 	const scalePattern = SCALE_PATTERNS[cfg.scale];
-	const finalRomanChord = CHORD_PROGRESSIONS[cfg.bars][0].slice(-1)[0];
+	const finalRomanChord = progression.slice(-1)[0];
 	const cadenceStyle = determineCadenceStyle(finalRomanChord, cfg);
 	applyFinalCadence(treble, bass, cadenceStyle, scaleInfo, fullScale, scalePattern);
 

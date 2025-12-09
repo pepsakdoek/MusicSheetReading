@@ -13,6 +13,7 @@
     <!-- Options Panel: full width, left-aligned, above OSMD, can be toggled -->
     <div class="w-full max-w-4xl mx-auto mb-6">
         <button id="optionsBtn" class="btn mb-2">Options</button>
+        <button id="generateMusicBtn" class="btn mb-6 self-start" style="align-self: anchor-center;">Generate New Music</button>
         <div id="optionsPanel" class="bg-white border border-gray-200 rounded-lg shadow-lg p-4 z-10 hidden">
             <h2 class="font-semibold text-lg mb-2">Practice Options</h2>
             <div class="mb-3">
@@ -39,18 +40,18 @@
             <div class="mb-3">
                 <label class="block font-medium mb-1" for="keySelect">Key (todo)</label>
                 <select id="keySelect" class="w-full border rounded px-2 py-1">
-                    <option>C Major</option>
-                    <option>G Major</option>
-                    <option>D Major</option>
-                    <option>A Major</option>
-                    <option>E Major</option>
-                    <option>B Major</option>
-                    <option>F Major</option>
-                    <option>Bb Major</option>
-                    <option>Eb Major</option>
-                    <option>Ab Major</option>
-                    <option>Db Major</option>
-                    <option>Gb Major</option>
+                    <option>C</option>
+                    <option>G</option>
+                    <option>D</option>
+                    <option>A</option>
+                    <option>E</option>
+                    <option>B</option>
+                    <option>F</option>
+                    <option>Bb</option>
+                    <option>Eb</option>
+                    <option>Ab</option>
+                    <option>Db</option>
+                    <option>Gb</option>
                 </select>
             </div>
             <div class="mb-3">
@@ -95,7 +96,6 @@
     <!-- Main music area, full width -->
     <div class="w-full flex flex-col min-w-0">
         <div id="osmd-container"></div>
-        <button id="generateMusicBtn" class="btn mb-6 self-start" style="align-self: anchor-center;">Generate New Music</button>
     </div>
 
     <script src="soundfont.js"></script>

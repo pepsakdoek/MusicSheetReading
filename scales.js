@@ -1,7 +1,7 @@
 const SCALE_PATTERNS = {
     // value: [intervals]
-    'major-pentatonic': [0, 2, 4, 7, 9],
-    'minor-pentatonic': [0, 3, 5, 7, 10],
+    'major-pentatonic': [0, 2, 4, 7],
+    'minor-pentatonic': [0, 3, 5, 7],
     'blues-minor': [0, 3, 5, 6, 7, 10],
     'blues-major': [0, 2, 3, 4, 7, 9],
     'dorian': [0, 2, 3, 5, 7, 9, 10],
@@ -26,9 +26,22 @@ const SCALE_NAMES = {
     'melodic-minor': 'Melodic Minor (Ascending)',
 };
 
-// Chord progressions per number of bars
+// Chord progressions per number of bars. Each length can have multiple options.
 const CHORD_PROGRESSIONS = {
-    2: [['I', 'V']],
-    4: [['I', 'IV', 'V', 'I']],
-    8: [['I', 'IV', 'V', 'I', 'vi', 'IV', 'V', 'I']],
+    2: [
+        ['I', 'V']
+    ],
+    4: [
+        ['I', 'IV', 'V', 'I'],
+        ['I', 'IV', 'vi', 'I'],
+        ['I', 'V', 'vi', 'I'],
+        ['I', 'V', 'IV', 'I'],
+        ['I', 'vi', 'IV', 'I'],
+        ['I', 'vi', 'V', 'I']
+    ],
+    8: [
+        ['I', 'IV', 'V', 'I', 'vi', 'IV', 'V', 'I'],
+        ['I', 'V', 'vi', 'IV', 'I', 'V', 'vi', 'I'],
+        ['I', 'vi', 'ii', 'V', 'I', 'vi', 'ii', 'I']
+    ],
 };

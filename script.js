@@ -40,7 +40,7 @@ function loadAndRenderGeneratedMusic() {
 
 function applyOptionsToUI(options) {
     if (options) {
-        document.getElementById('keySelect').value = options.key || 'C Major';
+        document.getElementById('keySelect').value = options.key || 'C';
         document.getElementById('maxJump').value = options.maxJump || 12;
         document.getElementById('startTonic').checked = options.startTonic === true;
         document.getElementById('measuresSelect').value = options.bars || 8;
