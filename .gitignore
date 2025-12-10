@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 .python*
+*.mxl
 
 
 # Virtual environments
@@ -17,3 +18,4 @@ main.py
 pyproject.toml
 test.xml
 uv.lock
+scoredb.csv
