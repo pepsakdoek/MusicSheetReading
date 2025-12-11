@@ -18,4 +18,4 @@ main.py
 pyproject.toml
 test.xml
 uv.lock
-scoredb.csv
+*.7z
