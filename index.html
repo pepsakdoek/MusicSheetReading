@@ -27,6 +27,14 @@
                 </select>
             </div>
             <div class="mb-3">
+                <label class="block font-medium mb-1" for="Complexity">Complexity</label>
+                <select id="Complexity" class="w-full border rounded px-2 py-1 mb-2">
+                    <option value="Easy">Easy</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="Hard">Hard</option>  
+                </select>
+            </div>
+            <!-- <div class="mb-3">
                 <label class="block font-medium mb-1" for="noteLengthsSelect">Note Lengths (todo)</label>
                 <select id="noteLengthsSelect" multiple class="w-full border rounded px-2 py-1" size="5">
                     <option value="16">16th</option>
@@ -36,8 +44,8 @@
                     <option value="1">Whole</option>
                 </select>
                 <div class="text-xs text-gray-500 mt-1">Hold Ctrl (Windows) or Cmd (Mac) to select multiple</div>
-            </div>
-            <div class="mb-3">
+            </div> -->
+            <!-- <div class="mb-3">
                 <label class="block font-medium mb-1" for="keySelect">Key (todo)</label>
                 <select id="keySelect" class="w-full border rounded px-2 py-1">
                     <option>C</option>
@@ -53,8 +61,8 @@
                     <option>Db</option>
                     <option>Gb</option>
                 </select>
-            </div>
-            <div class="mb-3">
+            </div> -->
+            <!-- <div class="mb-3">
                 <label class="block font-medium mb-1" for="scaleSelect">Scale</label>
                 <select id="scaleSelect" class="w-full border rounded px-2 py-1">
                     <option value="major-pentatonic" selected>Major Pentatonic</option>
@@ -87,7 +95,7 @@
                     <label><input type="checkbox" id="allowTuplets"> Allow tuplets (todo)</label>
                     <label><input type="checkbox" id="allowChords"> Chords (todo)</label>
                 </div>
-            </div>
+            </div> -->
             <!-- <button id="generateMusicBtn" class="btn mt-2">Generate New Music</button> -->
         </div>
         <button id="playSoundfontBtn" class="btn mb-2">Play</button>
@@ -101,6 +109,7 @@
     <script src="soundfont.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.8.4/build/opensheetmusicdisplay.min.js"></script>
     <script src="scales.js"></script>
+    <script src="./static/scores/scoredb.js"></script>
     <script src="generation-helpers.js"></script>
     <script src="music-generator.js"></script>
     <script src="audio-player.js"></script>
