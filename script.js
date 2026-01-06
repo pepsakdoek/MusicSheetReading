@@ -10,20 +10,38 @@ let audioControl = null; // To hold the audio player instance
 
 // Removed old options handling and added new options retrieval logic
 function getPracticeOptions() {
-    const bars = parseInt(document.getElementById('measuresSelect').value, 10) || 4;
-    const complexity = document.getElementById('Complexity').value || 'Medium';
+    const barsInput = document.getElementById('measuresSelect');
+    const complexityInput = document.getElementById('Complexity');
+    
+    const bars = parseInt(barsInput ? barsInput.value : 4, 10) || 4;
+    const complexity = complexityInput ? complexityInput.value : 'Medium';
+    
+    console.log(`[getPracticeOptions] Bars: ${bars}, Complexity: ${complexity}`);
     return { bars, complexity };
 }
 
 function loadAndRenderGeneratedMusic() {
     const options = getPracticeOptions();
+    console.log("[loadAndRenderGeneratedMusic] Options:", options);
 
-    const chosenSet = processScoreData(scoredata, options.bars);
+    const chosenSet = processScoreData(scoredata, options.bars, options.complexity);
 
-    console.log('Final chosen set of bars for practice:', chosenSet);
+    if (!chosenSet) {
+        console.error("[loadAndRenderGeneratedMusic] No valid practice set found for these options.");
+        return;
+    }
 
-    const title = `Practice Set (${chosenSet[0][0]}, Bars ${chosenSet[0][1]}-${chosenSet[0][1] + options.bars - 1})`;
+    console.log('[loadAndRenderGeneratedMusic] Final chosen set of bars for practice:', chosenSet);
+
+    const endBar = chosenSet[1];
+    const startBar = endBar - options.bars + 1;
+    const filename = chosenSet[0];
+    const cleanName = filename.split('/').pop().replace(/\.mxl$/i, '').replace(/_/g, ' ');
+    const title = `${cleanName} (Bars ${startBar}-${endBar})`;
+
     document.title = title;
+    console.log(`[loadAndRenderGeneratedMusic] Loading: ${cleanName} (Bars ${startBar}-${endBar})`);
+    console.log(`[loadAndRenderGeneratedMusic] Loading: ${filename} (Bars ${startBar}-${endBar})`);
     
     // const scaleName = SCALE_NAMES[options.scale] || 'Major';
     // const title = `Practice ${practicecount++} (${options.key}, ${scaleName})`;
@@ -33,24 +51,27 @@ function loadAndRenderGeneratedMusic() {
     // console.log(result.score);
     // score = result.score; // Assign to the global score variable
 
-    // osmd.load(result.musicXml).then(() => {
-    //     osmd.EngravingRules.VoiceSpacingMultiplierVexflow = 2;
-    //     osmd.EngravingRules.VoiceSpacingAddendVexflow = 3;
-    //     osmd.render();
-    //     document.title = title;
-    //     console.log("MusicXML successfully loaded and rendered.");
-    // }).catch((error) => {
-    //     console.error("Error loading or rendering MusicXML:", error);
-    // });
+    osmd.load(filename).then(() => {
+        console.log("[OSMD] Score loaded successfully.");
+        document.title = title;
+        osmd.setOptions({
+            drawFromMeasureNumber: startBar,
+            drawUpToMeasureNumber: endBar
+        });
+        osmd.render();
+        console.log("[OSMD] Render complete.");
+    }).catch((error) => {
+        console.error("[OSMD] Error loading or rendering MusicXML:", error);
+    });
 }
 
 function applyOptionsToUI(options) {
     if (options) {
-        document.getElementById('keySelect').value = options.key || 'C';
-        document.getElementById('maxJump').value = options.maxJump || 12;
-        document.getElementById('startTonic').checked = options.startTonic === true;
+        // document.getElementById('keySelect').value = options.key || 'C';
+        // document.getElementById('maxJump').value = options.maxJump || 12;
+        // document.getElementById('startTonic').checked = options.startTonic === true;
         document.getElementById('measuresSelect').value = options.bars || 8;
-        document.getElementById('scaleSelect').value = options.scale || 'major';
+        // document.getElementById('scaleSelect').value = options.scale || 'major';
     }
 }
 
@@ -114,7 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Step 1: Filter out rows based on the provided difficulty
 function filterScoreDataByDifficulty(scoredata, difficulty) {
-    return scoredata.rows.filter(row => {
+    console.log(`[filterScoreDataByDifficulty] Filtering ${scoredata.rows.length} rows for difficulty: ${difficulty}`);
+    const filteredRows = scoredata.rows.filter(row => {
         if (difficulty === 'Easy') {
             return row[11] === 'Easy';
         } else if (difficulty === 'Medium') {
@@ -123,13 +145,17 @@ function filterScoreDataByDifficulty(scoredata, difficulty) {
             return true; // No filtering for 'Hard'
         }
     });
+    console.log(`[filterScoreDataByDifficulty] Rows remaining: ${filteredRows.length}`);
+    return { ...scoredata, rows: filteredRows };
 }
 
 // Step 2: Add a 'consecutive' column based on bar_no sequence
 function addConsecutiveColumn(scoredata, bars) {
+    console.log(`[addConsecutiveColumn] Marking consecutive sequences of length ${bars}`);
     const updatedRows = [];
     let currentFile = null;
     let consecutiveCount = 0;
+    let lastBarNo = -1;
 
     for (const row of scoredata.rows) {
         const [filename, bar_no] = row;
@@ -137,33 +163,40 @@ function addConsecutiveColumn(scoredata, bars) {
         if (filename !== currentFile) {
             currentFile = filename;
             consecutiveCount = 1;
-        } else if (bar_no === consecutiveCount + 1) {
+            lastBarNo = bar_no;
+        } else if (bar_no === lastBarNo + 1) {
             consecutiveCount++;
+            lastBarNo = bar_no;
         } else {
             consecutiveCount = 1;
+            lastBarNo = bar_no;
         }
 
-        row.push(consecutiveCount >= bars ? 'yes' : 'no');
-        updatedRows.push(row);
+        updatedRows.push([...row, consecutiveCount >= bars ? 'yes' : 'no']);
     }
 
+    const validSequences = updatedRows.filter(r => r[r.length - 1] === 'yes').length;
+    console.log(`[addConsecutiveColumn] Found ${validSequences} valid sequences.`);
     return { ...scoredata, rows: updatedRows };
 }
 
 // Step 3: Filter out non-consecutive parts of the dataset
 function filterNonConsecutive(scoredata) {
-    return scoredata.rows.filter(row => row[row.length - 1] === 'yes');
+    const filteredRows = scoredata.rows.filter(row => row[row.length - 1] === 'yes');
+    console.log(`[filterNonConsecutive] Rows remaining after removing non-consecutive: ${filteredRows.length}`);
+    return { ...scoredata, rows: filteredRows };
 }
 
 // Step 4: Randomly choose a qualifying set of bars
 function chooseRandomSet(scoredata) {
+    if (scoredata.rows.length === 0) return null;
     const randomIndex = Math.floor(Math.random() * scoredata.rows.length);
     return scoredata.rows[randomIndex];
 }
 
 // Main function to process scoredata
-function processScoreData(scoredata, bars) {
-    let filteredData = filterScoreDataByDifficulty(scoredata, 'Easy');
+function processScoreData(scoredata, bars, complexity) {
+    let filteredData = filterScoreDataByDifficulty(scoredata, complexity || 'Easy');
     filteredData = addConsecutiveColumn(filteredData, bars);
     filteredData = filterNonConsecutive(filteredData);
     const chosenSet = chooseRandomSet(filteredData);
