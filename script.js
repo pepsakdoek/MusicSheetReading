@@ -53,7 +53,13 @@ function loadAndRenderGeneratedMusic() {
 
     osmd.load(filename).then(() => {
         console.log("[OSMD] Score loaded successfully.");
+        
+        // Generate score object for playback from OSMD data
+        score = convertOSMDToScore(osmd, startBar, endBar);
+        console.log("[Audio] Score generated from OSMD:", score);
+
         document.title = title;
+        osmd.sheet.title.text = title;
         osmd.setOptions({
             drawFromMeasureNumber: startBar,
             drawUpToMeasureNumber: endBar
@@ -63,6 +69,98 @@ function loadAndRenderGeneratedMusic() {
     }).catch((error) => {
         console.error("[OSMD] Error loading or rendering MusicXML:", error);
     });
+}
+
+// Helper to extract playback data from OSMD's internal model
+function convertOSMDToScore(osmdInstance, startBar, endBar) {
+    const sheet = osmdInstance.sheet;
+    const score = {
+        meta: { bpm: 100 }, // Default BPM
+        parts: []
+    };
+
+    // Try to find BPM from the sheet
+    if (sheet.MetronomeMark) {
+         score.meta.bpm = sheet.MetronomeMark.Tempo;
+    } else if (sheet.SourceMeasures.length > 0 && sheet.SourceMeasures[0].TempoInBPM) {
+         score.meta.bpm = sheet.SourceMeasures[0].TempoInBPM;
+    }
+
+    const voiceMap = new Map(); // voiceId -> { measures: [] }
+
+    // Iterate through all measures in the sheet
+    let playbackMeasureIndex = 0;
+    for (let i = 0; i < sheet.SourceMeasures.length; i++) {
+        const measure = sheet.SourceMeasures[i];
+        
+        // Filter by bar range if provided
+        if (startBar !== undefined && endBar !== undefined) {
+            if (measure.MeasureNumber < startBar || measure.MeasureNumber > endBar) {
+                continue;
+            }
+        }
+        const measureIndex = playbackMeasureIndex; 
+
+        // Iterate vertical containers (timestamps within the measure)
+        for (const vssec of measure.VerticalSourceStaffEntryContainers) {
+            for (const staffEntry of vssec.StaffEntries) {
+                if (!staffEntry) continue;
+
+                const voiceEntries = staffEntry.VoiceEntries || staffEntry.voiceEntries || [];
+
+                for (const voiceEntry of voiceEntries) {
+                    let voiceId = voiceEntry.VoiceId;
+                    if (voiceId === undefined && voiceEntry.ParentVoice) {
+                        voiceId = voiceEntry.ParentVoice.VoiceId;
+                    }
+                    if (voiceId === undefined) voiceId = 0;
+                    
+                    if (!voiceMap.has(voiceId)) {
+                        voiceMap.set(voiceId, { measures: [] });
+                    }
+                    const part = voiceMap.get(voiceId);
+                    
+                    // Ensure measure array exists for this index
+                    if (!part.measures[measureIndex]) {
+                        part.measures[measureIndex] = [];
+                    }
+                    const measureEvents = part.measures[measureIndex];
+
+                    const notes = voiceEntry.Notes || voiceEntry.notes || [];
+                    if (notes.length > 0) {
+                        const firstNote = notes[0];
+                        // OSMD Length.RealValue is based on Whole Note = 1.0
+                        // audio-player.js expects 1.0 = Quarter Note.
+                        // So we multiply by 4.
+                        const lengthObj = firstNote.Length || firstNote.length;
+                        let duration = 0;
+                        if (lengthObj) {
+                            const realValue = (lengthObj.RealValue !== undefined) ? lengthObj.RealValue : lengthObj.realValue;
+                            if (realValue !== undefined) duration = realValue * 4 ;
+                        }
+                        
+                        if (firstNote.isRest()) {
+                            measureEvents.push({ type: "rest", duration: duration });
+                        } else {
+                            // Collect MIDI numbers for chord or single note
+                            // Pitch.getHalfTone() returns the MIDI note number (e.g. 60 for Middle C)
+                            const midis = notes.map(n => n.Pitch ? n.Pitch.getHalfTone() : 0).filter(m => m > 0);
+                            
+                            if (midis.length === 1) {
+                                measureEvents.push({ type: "note", midi: midis[0], duration: duration });
+                            } else if (midis.length > 1) {
+                                measureEvents.push({ type: "chord", midi: midis, duration: duration });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        playbackMeasureIndex++;
+    }
+    
+    score.parts = Array.from(voiceMap.values());
+    return score;
 }
 
 function applyOptionsToUI(options) {

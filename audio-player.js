@@ -30,6 +30,10 @@ async function loadSoundfont() {
  * Convert "4n", "8n", "2n", etc. into seconds.
  */
 function durationToSeconds(dur, quarterNoteDuration) {
+	if (typeof dur === 'number') {
+		return dur * quarterNoteDuration;
+	}
+
 	switch (dur) {
 		case "1n":	return quarterNoteDuration * 4;
 		case "2n":	return quarterNoteDuration * 2;
@@ -104,7 +108,10 @@ async function playMusic(score) {
 	player.stop();
 
 	const BPM = score.meta?.bpm || 90;
+	console.log(`BPM : `, BPM);
 	const quarterNoteDuration = 60 / BPM;
+	console.log(`quarterNoteDuration : `, 60 / BPM);
+
 
 	// Determine total number of measures
 	const totalBars = score.parts[0]?.measures?.length || 0;
