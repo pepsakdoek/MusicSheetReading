@@ -36,6 +36,7 @@ function loadAndRenderGeneratedMusic() {
     const endBar = chosenSet[1];
     const startBar = endBar - options.bars + 1;
     const filename = chosenSet[0];
+    const song_start_bar = chosenSet[12]; // I think test 
     const cleanName = filename.split('/').pop().replace(/\.mxl$/i, '').replace(/_/g, ' ');
     const title = `${cleanName} (Bars ${startBar}-${endBar})`;
 
@@ -55,7 +56,7 @@ function loadAndRenderGeneratedMusic() {
         console.log("[OSMD] Score loaded successfully.");
         
         // Generate score object for playback from OSMD data
-        score = convertOSMDToScore(osmd, startBar, endBar);
+        score = convertOSMDToScore(osmd, startBar - 1 + song_start_bar, endBar - 1 + song_start_bar);
         console.log("[Audio] Score generated from OSMD:", score);
 
         document.title = title;
@@ -285,6 +286,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+// Step 0.5 : Add the song start bar column
+function addSongStartBarColumn(scoredata) {
+    console.log("[addSongStartBarColumn] Adding song start bar column.");
+    const songStartBars = new Map(); // filename -> min_bar_no
+
+    // First pass: find the minimum bar_no for each filename
+    for (const row of scoredata.rows) {
+        const filename = row[0];
+        const bar_no = row[1];
+        if (!songStartBars.has(filename) || bar_no < songStartBars.get(filename)) {
+            songStartBars.set(filename, bar_no);
+        }
+    }
+
+    // Second pass: add the song_start_bar to each row
+    const updatedRows = scoredata.rows.map(row => {
+        const filename = row[0];
+        const song_start_bar = songStartBars.get(filename);
+        return [...row, song_start_bar];
+    });
+
+    console.log(`[addSongStartBarColumn] Added song start bar to ${updatedRows.length} rows.`);
+    return { ...scoredata, rows: updatedRows };
+}
+
 // Step 1: Filter out rows based on the provided difficulty
 function filterScoreDataByDifficulty(scoredata, difficulty) {
     console.log(`[filterScoreDataByDifficulty] Filtering ${scoredata.rows.length} rows for difficulty: ${difficulty}`);
@@ -348,6 +374,7 @@ function chooseRandomSet(scoredata) {
 
 // Main function to process scoredata
 function processScoreData(scoredata, bars, complexity) {
+    scoredata = addSongStartBarColumn(scoredata);
     let filteredData = filterScoreDataByDifficulty(scoredata, complexity || 'Easy');
     filteredData = addConsecutiveColumn(filteredData, bars);
     filteredData = filterNonConsecutive(filteredData);
