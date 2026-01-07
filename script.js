@@ -223,7 +223,14 @@ function applyOptionsToUI(options) {
         // document.getElementById('keySelect').value = options.key || 'C';
         // document.getElementById('maxJump').value = options.maxJump || 12;
         // document.getElementById('startTonic').checked = options.startTonic === true;
-        document.getElementById('measuresSelect').value = options.bars || 8;
+        const measuresSelect = document.getElementById('measuresSelect');
+        if (measuresSelect) {
+            measuresSelect.value = options.bars || 8;
+        }
+        const complexityInput = document.getElementById('Complexity');
+        if (complexityInput) {
+            complexityInput.value = options.complexity || 'Medium';
+        }
         // document.getElementById('scaleSelect').value = options.scale || 'major';
     }
 }
