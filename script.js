@@ -38,7 +38,7 @@ function loadAndRenderGeneratedMusic() {
     const filename = chosenSet[0];
     const song_start_bar = chosenSet[12]; // I think test 
     const cleanName = filename.split('/').pop().replace(/\.mxl$/i, '').replace(/_/g, ' ');
-    const title = `${cleanName} (Bars ${startBar}-${endBar})`;
+    const title = `${cleanName} (Bars ${startBar}-${endBar}) Star bar: ${song_start_bar}`;
 
     document.title = title;
     console.log(`[loadAndRenderGeneratedMusic] Loading: ${cleanName} (Bars ${startBar}-${endBar})`);
