@@ -87,18 +87,35 @@ function convertOSMDToScore(osmdInstance, startBar, endBar) {
     }
 
     const voiceMap = new Map(); // voiceId -> { measures: [] }
+    const debugData = []; // For logging purposes
+    const simpleDebug = []; // Simplified log for user verification
+
+    console.log(`[Audio] Converting OSMD to Score. Target Range: ${startBar} to ${endBar}`);
 
     // Iterate through all measures in the sheet
     let playbackMeasureIndex = 0;
     for (let i = 0; i < sheet.SourceMeasures.length; i++) {
         const measure = sheet.SourceMeasures[i];
+        // Ensure we compare numbers
+        const measureNumber = typeof measure.MeasureNumber === 'number' 
+            ? measure.MeasureNumber 
+            : parseInt(measure.MeasureNumber, 10);
+        
+        const measureDebug = {
+            measureNumber: measureNumber,
+            measureIndex: i,
+            included: false,
+            events: []
+        };
         
         // Filter by bar range if provided
         if (startBar !== undefined && endBar !== undefined) {
-            if (measure.MeasureNumber < startBar || measure.MeasureNumber > endBar) {
+            if (measureNumber < startBar || measureNumber > endBar) {
+                debugData.push(measureDebug); // Log skipped measures to help debugging
                 continue;
             }
         }
+        measureDebug.included = true;
         const measureIndex = playbackMeasureIndex; 
 
         // Iterate vertical containers (timestamps within the measure)
@@ -139,25 +156,62 @@ function convertOSMDToScore(osmdInstance, startBar, endBar) {
                             if (realValue !== undefined) duration = realValue * 4 ;
                         }
                         
+                        let event = null;
                         if (firstNote.isRest()) {
-                            measureEvents.push({ type: "rest", duration: duration });
+                            event = { type: "rest", duration: duration };
                         } else {
                             // Collect MIDI numbers for chord or single note
                             // Pitch.getHalfTone() returns the MIDI note number (e.g. 60 for Middle C)
                             const midis = notes.map(n => n.Pitch ? n.Pitch.getHalfTone() : 0).filter(m => m > 0);
                             
                             if (midis.length === 1) {
-                                measureEvents.push({ type: "note", midi: midis[0], duration: duration });
+                                event = { type: "note", midi: midis[0], duration: duration };
                             } else if (midis.length > 1) {
-                                measureEvents.push({ type: "chord", midi: midis, duration: duration });
+                                event = { type: "chord", midi: midis, duration: duration };
                             }
+                        }
+
+                        if (event) {
+                            measureEvents.push(event);
+                            
+                            // Create readable event for debug
+                            const readableEvent = {
+                                type: event.type,
+                                duration: duration.toFixed(2), // Duration in quarter notes
+                                voice: voiceId
+                            };
+                            
+                            if (event.type === 'note') {
+                                readableEvent.midi = event.midi;
+                                readableEvent.pitch = notes[0].Pitch ? notes[0].Pitch.toString() : 'N/A';
+                            } else if (event.type === 'chord') {
+                                readableEvent.midis = event.midi;
+                                readableEvent.pitches = notes.map(n => n.Pitch ? n.Pitch.toString() : 'N/A');
+                            }
+                            
+                            measureDebug.events.push(readableEvent);
                         }
                     }
                 }
             }
         }
+        debugData.push(measureDebug);
+        
+        if (measureDebug.included) {
+            simpleDebug.push({
+                bar: measureNumber,
+                index: i,
+                events: measureDebug.events
+            });
+        }
+        
         playbackMeasureIndex++;
     }
+    
+    console.log("[Audio] Filtered MusicXML Data (Debug):", debugData);
+    console.log("[Audio] Playback Notes (Readable):", simpleDebug);
+    score.debugData = debugData;
+    score.simpleDebug = simpleDebug;
     
     score.parts = Array.from(voiceMap.values());
     return score;

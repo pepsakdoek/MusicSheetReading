@@ -108,9 +108,7 @@ async function playMusic(score) {
 	player.stop();
 
 	const BPM = score.meta?.bpm || 90;
-	console.log(`BPM : `, BPM);
 	const quarterNoteDuration = 60 / BPM;
-	console.log(`quarterNoteDuration : `, 60 / BPM);
 
 
 	// Determine total number of measures
